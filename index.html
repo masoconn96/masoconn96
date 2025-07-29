@@ -270,14 +270,14 @@
         let gameStarted = false;
         let readyTimeout = null;
         let lastDirectionKey = null;
-        const directionKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+        // Removed directionKeys - using simpler system now
         let powerups = [];
         let rapidFireActive = false;
         let infiniteAmmoActive = false;
         let rapidFireTimeout = null;
         let infiniteAmmoTimeout = null;
         let powerupTimers = [];
-        let directionStack = [];
+        // Removed directionStack - using simpler system now
         let enemyRespawnTimer = 0;
         let enemyRespawnInterval = 2000 + Math.random() * 3000; // 2-5 seconds
         // Power-up types
@@ -288,41 +288,30 @@
             { type: 'infinite', color: '#ff66cc', border: '#b3006b', logo: '∞' }
         ];
         
-        // Input handling
+        // Input handling - simplified
         document.addEventListener('keydown', (e) => {
             keys[e.key] = true;
-            if (directionKeys.includes(e.key)) {
-                // Add to direction stack if not present
-                if (!directionStack.includes(e.key)) {
-                    directionStack.push(e.key);
-                }
-            }
             e.preventDefault(); // Prevent page scrolling
         });
         
         document.addEventListener('keyup', (e) => {
             keys[e.key] = false;
-            if (directionKeys.includes(e.key)) {
-                // Remove from direction stack
-                directionStack = directionStack.filter(k => k !== e.key);
-            }
         });
-        // Helper: get angle for current direction stack (diagonals prioritized)
-        function getAngleForDirectionStack() {
-            // Check for diagonals first
-            if (directionStack.includes('ArrowUp') && directionStack.includes('ArrowLeft')) return -135;
-            if (directionStack.includes('ArrowUp') && directionStack.includes('ArrowRight')) return -45;
-            if (directionStack.includes('ArrowDown') && directionStack.includes('ArrowLeft')) return 135;
-            if (directionStack.includes('ArrowDown') && directionStack.includes('ArrowRight')) return 45;
-            // Then singles, using the most recent key
-            if (directionStack.length > 0) {
-                const last = directionStack[directionStack.length - 1];
-                if (last === 'ArrowUp') return -90;
-                if (last === 'ArrowDown') return 90;
-                if (last === 'ArrowLeft') return 180;
-                if (last === 'ArrowRight') return 0;
-            }
-            // Keep the last known angle if no keys are pressed
+        // Simple and reliable barrel direction system
+        function getBarrelAngle() {
+            // Check for diagonal movement first (prioritize diagonals)
+            if (keys['ArrowUp'] && keys['ArrowLeft']) return -135;
+            if (keys['ArrowUp'] && keys['ArrowRight']) return -45;
+            if (keys['ArrowDown'] && keys['ArrowLeft']) return 135;
+            if (keys['ArrowDown'] && keys['ArrowRight']) return 45;
+            
+            // Then check single directions
+            if (keys['ArrowUp']) return -90;
+            if (keys['ArrowDown']) return 90;
+            if (keys['ArrowLeft']) return 180;
+            if (keys['ArrowRight']) return 0;
+            
+            // If no keys pressed, keep the last angle
             return playerAngle;
         }
         
@@ -384,7 +373,7 @@
                 moved = true;
             }
             // Update barrel direction based on current keys pressed
-            const newAngle = getAngleForDirectionStack();
+            const newAngle = getBarrelAngle();
             playerAngle = newAngle; // Always update to current direction
             // Always update player and cannon position
             player.style.left = playerX + 'px';
