@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stable Tank Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1e3c72;
+            font-family: Arial, sans-serif;
+            color: white;
+            text-align: center;
+        }
+        #game-container {
+            border: 2px solid #333;
+            background: #2d5016;
+            width: 800px;
+            height: 600px;
+            position: relative;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+        #player {
+            position: absolute;
+            width: 40px;  /* Change this to resize width */
+            height: 50px; /* Change this to resize height */
+            background: #0066cc;
+            border: 2px solid #003366;
+            top: 275px;
+            left: 380px;
+            transition: all 0.1s ease;
+            border-radius: 8px;
+        }
+        #cannon {
+            position: absolute;
+            width: 6px;
+            height: 30px;
+            background: #003366;
+            top: 245px;
+            left: 397px;
+            transition: all 0.1s ease;
+            border-radius: 3px;
+        }
+        .enemy {
+            position: absolute;
+            width: 60px;  /* Increased from 40px to 60px */
+            height: 75px; /* Increased from 50px to 75px */
+            background: none;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        
+        /* Enemy type indicators */
+        .enemy::after {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            border: 1px solid white;
+        }
+        
+        .enemy.chase::after {
+            background: #ff4444; /* Red for aggressive chasers */
+        }
+        
+        .enemy.patrol::after {
+            background: #44ff44; /* Green for patrollers */
+        }
+        
+        .enemy.sniper::after {
+            background: #4444ff; /* Blue for snipers */
+        }
+        
+        .enemy.flanker::after {
+            background: #ffff44; /* Yellow for flankers */
+        }
+        .enemy img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .tank-tracks {
+            position: absolute;
+            width: 44px;
+            height: 8px;
+            background: #333;
+            border: 1px solid #222;
+            border-radius: 4px;
+        }
+        .tank-turret {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #004499;
+            border: 2px solid #002266;
+            border-radius: 50%;
+            top: 3px;
+            left: 8px;
+        }
+        .enemy-turret {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #990000;
+            border: 2px solid #660000;
+            border-radius: 50%;
+            top: 3px;
+            left: 8px;
+        }
+        .tank-hatch {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #555;
+            border: 1px solid #333;
+            border-radius: 50%;
+            top: 8px;
+            left: 8px;
+        }
+        .tank-details {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .bullet {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            transition: none;
+        }
+        .player-bullet {
+            background: #ffff00;
+            border: 1px solid #ffcc00;
+        }
+        .enemy-bullet {
+            background: #ff6666;
+            border: 1px solid #ff4444;
+        }
+        .obstacle {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #8B4513;
+            border: 2px solid #654321;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        #powerup-timers-container {
+            margin-top: 8px;
+        }
+        .powerup-timer {
+            display: inline-block;
+            background: #ffcc00;
+            color: #222;
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 1em;
+            margin-top: 2px;
+            margin-right: 6px;
+            margin-bottom: 2px;
+            box-shadow: 0 2px 8px #0006;
+        }
+        #move-instructions {
+            position: absolute;
+            right: 18px;
+            bottom: 18px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            font-size: 1em;
+            padding: 10px 18px;
+            border-radius: 10px;
+            z-index: 120;
+            box-shadow: 0 2px 8px #0006;
+            user-select: none;
+            pointer-events: none;
+        }
+        #instructions {
+            margin: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+        }
+        .powerup {
+            box-shadow: 0 0 10px 2px rgba(0,0,0,0.3);
+            z-index: 50;
+        }
+        .powerup-timer {
+            position: absolute;
+            top: 60px;
+            right: 30px;
+            background: #ffcc00;
+            color: #222;
+            font-weight: bold;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-size: 1.1em;
+            z-index: 200;
+            box-shadow: 0 2px 8px #0006;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stable Tank Game</h1>
+    <div id="instructions">
+        <p>Use Arrow Keys to move your blue tank. Press SPACEBAR to shoot!</p>
+        <p>Red enemies will chase you and shoot back!</p>
+        <p>Score: <span id="score">0</span> | Health: <span id="health">100</span> | Ammo: <span id="ammo">30</span></p>
+    </div>
+    
+    <div id="game-container">
+        <div id="ui">
+            <div>Score: <span id="score-value">0</span></div>
+            <div>Health: <span id="health-value">100</span></div>
+            <div>Ammo: <span id="ammo-value">30</span></div>
+            <div id="powerup-timers-container"></div>
+        </div>
+        <div id="player">
+            <div class="tank-details">
+                <div class="tank-tracks" style="top: -4px; left: -2px;"></div>
+                <div class="tank-tracks" style="bottom: -4px; left: -2px;"></div>
+                <div class="tank-turret"></div>
+                <div class="tank-hatch"></div>
+            </div>
+        </div>
+        <div id="cannon"></div>
+        <div class="obstacle" style="top: 100px; left: 100px;"></div>
+        <div class="obstacle" style="top: 100px; left: 700px;"></div>
+        <div class="obstacle" style="top: 500px; left: 100px;"></div>
+        <div class="obstacle" style="top: 500px; left: 700px;"></div>
+        <div class="obstacle" style="top: 300px; left: 300px;"></div>
+        <div class="obstacle" style="top: 300px; left: 500px;"></div>
+        <div id="get-ready" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.7);color:#fff;font-size:2em;z-index:200;align-items:center;justify-content:center;display:flex;">Get Ready!</div>
+        <div id="move-instructions">Move: Arrow Keys<br>Shoot: Spacebar<br>Enemy Types: 🔴Chase 🔵Sniper 🟢Patrol 🟡Flanker</div>
+    </div>
+    
+    <script>
+        console.log('Starting stable tank game...');
+        
+        // Game state
+        const player = document.getElementById('player');
+        const cannon = document.getElementById('cannon');
+        const container = document.getElementById('game-container');
+        let playerX = 380;
+        let playerY = 275;
+        let playerAngle = 0;
+        let score = 0;
+        let health = 100;
+        let ammo = 30;
+        let enemies = [];
+        let playerBullets = [];
+        let enemyBullets = [];
+        let keys = {};
+        let lastPlayerShot = 0;
+        let gameStarted = false;
+        let readyTimeout = null;
+        let lastDirectionKey = null;
+        const directionKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+        let powerups = [];
+        let rapidFireActive = false;
+        let infiniteAmmoActive = false;
+        let rapidFireTimeout = null;
+        let infiniteAmmoTimeout = null;
+        let powerupTimers = [];
+        let directionStack = [];
+        let enemyRespawnTimer = 0;
+        let enemyRespawnInterval = 2000 + Math.random() * 3000; // 2-5 seconds
+        // Power-up types
+        const POWERUP_TYPES = [
+            { type: 'health', color: '#00ff00', border: '#007700', logo: '❤️' },
+            { type: 'ammo', color: '#3399ff', border: '#003377', logo: '🔫' },
+            { type: 'rapid', color: '#ffcc00', border: '#bba200', logo: '⚡' },
+            { type: 'infinite', color: '#ff66cc', border: '#b3006b', logo: '∞' }
+        ];
+        
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (directionKeys.includes(e.key)) {
+                // Add to direction stack if not present
+                if (!directionStack.includes(e.key)) {
+                    directionStack.push(e.key);
+                }
+            }
+            e.preventDefault(); // Prevent page scrolling
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+            if (directionKeys.includes(e.key)) {
+                // Remove from direction stack
+                directionStack = directionStack.filter(k => k !== e.key);
+            }
+        });
+        // Helper: get angle for current direction stack (diagonals prioritized)
+        function getAngleForDirectionStack() {
+            // Check for diagonals first
+            if (directionStack.includes('ArrowUp') && directionStack.includes('ArrowLeft')) return -135;
+            if (directionStack.includes('ArrowUp') && directionStack.includes('ArrowRight')) return -45;
+            if (directionStack.includes('ArrowDown') && directionStack.includes('ArrowLeft')) return 135;
+            if (directionStack.includes('ArrowDown') && directionStack.includes('ArrowRight')) return 45;
+            // Then singles, using the most recent key
+            if (directionStack.length > 0) {
+                const last = directionStack[directionStack.length - 1];
+                if (last === 'ArrowUp') return -90;
+                if (last === 'ArrowDown') return 90;
+                if (last === 'ArrowLeft') return 180;
+                if (last === 'ArrowRight') return 0;
+            }
+            // Keep the last known angle if no keys are pressed
+            return playerAngle;
+        }
+        
+        // Create enemies
+        function createEnemy() {
+            const enemy = document.createElement('div');
+            enemy.className = 'enemy';
+            
+            // Use your screenshot for enemy tanks
+            enemy.innerHTML = '<img src="tank.png" alt="Enemy Tank" onerror="this.style.display=\'none\'; this.parentElement.innerHTML=\'<div style=\\\'width:100%;height:100%;background:#cc0000;border:2px solid #990000;border-radius:8px;\\\'></div>\';">';
+            
+            enemy.style.left = Math.random() * 700 + 50 + 'px';
+            enemy.style.top = Math.random() * 500 + 50 + 'px';
+            
+            container.appendChild(enemy);
+            
+            const movementType = Math.random() < 0.3 ? 'chase' : 
+                                (Math.random() < 0.6 ? 'patrol' : 
+                                (Math.random() < 0.8 ? 'sniper' : 'flanker'));
+            
+            enemies.push({
+                element: enemy,
+                x: parseInt(enemy.style.left),
+                y: parseInt(enemy.style.top),
+                speed: 0.7 + Math.random() * 0.7, // Nerfed speed
+                health: 100,
+                lastShot: 0,
+                movementType: movementType
+            });
+            
+            // Add visual class for enemy type
+            enemy.classList.add(movementType);
+        }
+        
+        // Create initial enemies
+        for (let i = 0; i < 3; i++) {
+            createEnemy();
+        }
+        
+        // Update player position and shooting
+        function updatePlayer() {
+            const speed = 5;
+            let moved = false;
+            // Move the tank if keys are pressed
+            if (keys['ArrowUp'] && playerY > 10) {
+                playerY -= speed;
+                moved = true;
+            }
+            if (keys['ArrowDown'] && playerY < 550) {
+                playerY += speed;
+                moved = true;
+            }
+            if (keys['ArrowLeft'] && playerX > 10) {
+                playerX -= speed;
+                moved = true;
+            }
+            if (keys['ArrowRight'] && playerX < 760) {
+                playerX += speed;
+                moved = true;
+            }
+            // Update barrel direction based on current keys pressed
+            const newAngle = getAngleForDirectionStack();
+            playerAngle = newAngle; // Always update to current direction
+            // Always update player and cannon position
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+            
+            // Position cannon at tank center and rotate properly
+            const tankCenterX = playerX + 20; // Player tank is 40px wide, so center is at +20
+            const tankCenterY = playerY + 25; // Player tank is 50px tall, so center is at +25
+            const cannonLength = 30;
+            const cannonWidth = 6;
+            
+            // Position cannon at tank center
+            cannon.style.width = cannonWidth + 'px';
+            cannon.style.height = cannonLength + 'px';
+            cannon.style.left = (tankCenterX - cannonWidth/2) + 'px';
+            cannon.style.top = (tankCenterY - cannonLength) + 'px';
+            
+            // Rotate cannon around its base (bottom center)
+            cannon.style.transform = `rotate(${playerAngle}deg)`;
+            cannon.style.transformOrigin = `${cannonWidth/2}px ${cannonLength}px`;
+            // Shooting logic
+            let fireDelay = 200;
+            if (rapidFireActive) fireDelay = 60;
+            if (keys[' '] && (infiniteAmmoActive || ammo > 0) && Date.now() - lastPlayerShot > fireDelay) {
+                firePlayerBullet();
+                lastPlayerShot = Date.now();
+            }
+        }
+        
+        // Player shooting function
+        function firePlayerBullet() {
+            if (!infiniteAmmoActive && ammo <= 0) return;
+            
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet player-bullet';
+            bullet.style.left = '-100px'; // Hide until positioned
+            bullet.style.top = '-100px';
+            container.appendChild(bullet);
+            
+            const bulletSpeed = 8;
+            // Use playerAngle for both barrel and bullet direction
+            const angleRad = playerAngle * Math.PI / 180;
+            const tankCenterX = playerX + 20;
+            const tankCenterY = playerY + 25;
+            const bulletX = tankCenterX + Math.cos(angleRad) * 35;
+            const bulletY = tankCenterY + Math.sin(angleRad) * 35;
+            
+            playerBullets.push({
+                element: bullet,
+                x: bulletX,
+                y: bulletY,
+                vx: Math.cos(angleRad) * bulletSpeed,
+                vy: Math.sin(angleRad) * bulletSpeed,
+                spawnTime: Date.now()
+            });
+            
+            if (!infiniteAmmoActive) ammo--;
+        }
+        
+        // Enhanced enemy shooting function
+        function fireEnemyBullet(enemy) {
+            if (!gameStarted) return;
+            
+            // Calculate angle to player
+            const dx = playerX - enemy.x;
+            const dy = playerY - enemy.y;
+            const angle = Math.atan2(dy, dx);
+            
+            // Add accuracy variation based on enemy type
+            let accuracy = 0.1; // Base accuracy (10% variation)
+            let bulletSpeed = 2.5; // Base speed
+            
+            if (enemy.movementType === 'sniper') {
+                accuracy = 0.05; // Very accurate (5% variation)
+                bulletSpeed = 3.2; // Faster bullets
+            } else if (enemy.movementType === 'chase') {
+                accuracy = 0.15; // Less accurate (15% variation)
+                bulletSpeed = 2.8;
+            } else if (enemy.movementType === 'flanker') {
+                accuracy = 0.12; // Medium accuracy
+                bulletSpeed = 2.6;
+            }
+            
+            // Add random spread to angle
+            const spreadAngle = angle + (Math.random() - 0.5) * accuracy;
+            
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet enemy-bullet';
+            bullet.style.left = '-100px';
+            bullet.style.top = '-100px';
+            container.appendChild(bullet);
+            
+            const bulletX = enemy.x + 30; // Enemy tanks are now 60px wide, so center is at +30
+            const bulletY = enemy.y + 37; // Enemy tanks are now 75px tall, so center is at +37
+            
+            enemyBullets.push({
+                element: bullet,
+                x: bulletX,
+                y: bulletY,
+                vx: Math.cos(spreadAngle) * bulletSpeed,
+                vy: Math.sin(spreadAngle) * bulletSpeed,
+                spawnTime: Date.now()
+            });
+        }
+        
+        // Update bullets
+        function updateBullets() {
+            const now = Date.now();
+            // Update player bullets
+            for (let i = playerBullets.length - 1; i >= 0; i--) {
+                const bullet = playerBullets[i];
+                bullet.x += bullet.vx;
+                bullet.y += bullet.vy;
+                bullet.element.style.left = bullet.x + 'px';
+                bullet.element.style.top = bullet.y + 'px';
+                // Remove bullets that are out of bounds or expired
+                if (
+                    bullet.x < 0 || bullet.x > 800 || bullet.y < 0 || bullet.y > 600 ||
+                    now - bullet.spawnTime > 2000
+                ) {
+                    bullet.element.remove();
+                    playerBullets.splice(i, 1);
+                }
+            }
+            // Update enemy bullets
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                const bullet = enemyBullets[i];
+                bullet.x += bullet.vx;
+                bullet.y += bullet.vy;
+                bullet.element.style.left = bullet.x + 'px';
+                bullet.element.style.top = bullet.y + 'px';
+                if (
+                    bullet.x < 0 || bullet.x > 800 || bullet.y < 0 || bullet.y > 600 ||
+                    now - bullet.spawnTime > 3000
+                ) {
+                    bullet.element.remove();
+                    enemyBullets.splice(i, 1);
+                }
+            }
+        }
+        
+        // Update enemies with improved AI
+        function updateEnemies() {
+            enemies.forEach((enemy, index) => {
+                if (!gameStarted) return;
+                
+                // Initialize enemy properties if not set
+                if (!enemy.movementType) {
+                    const rand = Math.random();
+                    if (rand < 0.3) enemy.movementType = 'chase';
+                    else if (rand < 0.6) enemy.movementType = 'patrol';
+                    else if (rand < 0.8) enemy.movementType = 'sniper';
+                    else enemy.movementType = 'flanker';
+                    
+                    enemy.patrolTimer = 0;
+                    enemy.lastDirectionChange = 0;
+                    enemy.targetX = Math.random() * 700 + 50;
+                    enemy.targetY = Math.random() * 500 + 50;
+                    enemy.retreatHealth = 30; // Health threshold to retreat
+                }
+                
+                const dx = playerX - enemy.x;
+                const dy = playerY - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Enhanced movement patterns
+                if (enemy.movementType === 'chase') {
+                    // Aggressive chaser - moves directly toward player
+                    if (distance > 0) {
+                        enemy.x += (dx / distance) * enemy.speed * 1.2;
+                        enemy.y += (dy / distance) * enemy.speed * 1.2;
+                    }
+                    
+                    // Retreat when health is low
+                    if (enemy.health < enemy.retreatHealth && distance < 150) {
+                        enemy.x -= (dx / distance) * enemy.speed * 0.8;
+                        enemy.y -= (dy / distance) * enemy.speed * 0.8;
+                    }
+                    
+                } else if (enemy.movementType === 'patrol') {
+                    // Smart patrol - moves between waypoints
+                    enemy.patrolTimer += 0.01;
+                    
+                    // Change target every few seconds
+                    if (Date.now() - enemy.lastDirectionChange > 3000) {
+                        enemy.targetX = Math.random() * 700 + 50;
+                        enemy.targetY = Math.random() * 500 + 50;
+                        enemy.lastDirectionChange = Date.now();
+                    }
+                    
+                    // Move toward target
+                    const targetDx = enemy.targetX - enemy.x;
+                    const targetDy = enemy.targetY - enemy.y;
+                    const targetDistance = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+                    
+                    if (targetDistance > 5) {
+                        enemy.x += (targetDx / targetDistance) * enemy.speed * 0.8;
+                        enemy.y += (targetDy / targetDistance) * enemy.speed * 0.8;
+                    }
+                    
+                    // Switch to chase if player is close
+                    if (distance < 180) {
+                        enemy.movementType = 'chase';
+                    }
+                    
+                } else if (enemy.movementType === 'sniper') {
+                    // Sniper - keeps distance and shoots accurately
+                    const idealDistance = 250;
+                    
+                    if (distance < idealDistance - 20) {
+                        // Too close, back away
+                        enemy.x -= (dx / distance) * enemy.speed * 0.6;
+                        enemy.y -= (dy / distance) * enemy.speed * 0.6;
+                    } else if (distance > idealDistance + 20) {
+                        // Too far, move closer
+                        enemy.x += (dx / distance) * enemy.speed * 0.4;
+                        enemy.y += (dy / distance) * enemy.speed * 0.4;
+                    }
+                    
+                    // Strafe left and right
+                    enemy.patrolTimer += 0.02;
+                    const strafeAmount = Math.sin(enemy.patrolTimer) * 2;
+                    enemy.x += strafeAmount;
+                    
+                } else if (enemy.movementType === 'flanker') {
+                    // Flanker - tries to get behind the player
+                    const angleToPlayer = Math.atan2(dy, dx);
+                    const flankAngle = angleToPlayer + Math.PI * 0.7; // Try to get to the side
+                    
+                    const flankX = playerX + Math.cos(flankAngle) * 120;
+                    const flankY = playerY + Math.sin(flankAngle) * 120;
+                    
+                    const flankDx = flankX - enemy.x;
+                    const flankDy = flankY - enemy.y;
+                    const flankDistance = Math.sqrt(flankDx * flankDx + flankDy * flankDy);
+                    
+                    if (flankDistance > 10) {
+                        enemy.x += (flankDx / flankDistance) * enemy.speed * 1.1;
+                        enemy.y += (flankDy / flankDistance) * enemy.speed * 1.1;
+                    }
+                    
+                    // Switch to direct chase if very close
+                    if (distance < 100) {
+                        enemy.movementType = 'chase';
+                    }
+                }
+                
+                // Keep in bounds with bounce effect
+                if (enemy.x < 15) {
+                    enemy.x = 15;
+                    enemy.targetX = enemy.x + 100; // Change direction
+                } else if (enemy.x > 755) {
+                    enemy.x = 755;
+                    enemy.targetX = enemy.x - 100; // Change direction
+                }
+                
+                if (enemy.y < 20) {
+                    enemy.y = 20;
+                    enemy.targetY = enemy.y + 100; // Change direction
+                } else if (enemy.y > 560) {
+                    enemy.y = 560;
+                    enemy.targetY = enemy.y - 100; // Change direction
+                }
+                
+                enemy.element.style.left = enemy.x + 'px';
+                enemy.element.style.top = enemy.y + 'px';
+                
+                // Enhanced enemy shooting based on type
+                let fireRate = 2200; // Base fire rate
+                let shootRange = 300; // Base range
+                
+                if (enemy.movementType === 'sniper') {
+                    fireRate = 1500; // Faster shooting
+                    shootRange = 350; // Longer range
+                } else if (enemy.movementType === 'chase') {
+                    fireRate = 1800; // Medium rate
+                    shootRange = 250; // Medium range
+                } else if (enemy.movementType === 'flanker') {
+                    fireRate = 2000; // Slower but more strategic
+                    shootRange = 280;
+                }
+                
+                // Shoot if in range and cooldown is ready
+                if (distance < shootRange && Date.now() - enemy.lastShot > fireRate) {
+                    fireEnemyBullet(enemy);
+                    enemy.lastShot = Date.now();
+                }
+                
+                // Check collision with player
+                const playerRect = player.getBoundingClientRect();
+                const enemyRect = enemy.element.getBoundingClientRect();
+                
+                if (playerRect.left < enemyRect.right && 
+                    playerRect.right > enemyRect.left && 
+                    playerRect.top < enemyRect.bottom && 
+                    playerRect.bottom > enemyRect.top) {
+                    // Collision!
+                    health -= 1;
+                    updateUI();
+                    
+                    if (health <= 0) {
+                        alert('Game Over! Final Score: ' + score);
+                        location.reload();
+                    }
+                }
+            });
+        }
+        
+        // Check bullet collisions
+        function checkBulletCollisions() {
+            // Player bullets hitting enemies
+            playerBullets.forEach((bullet, bulletIndex) => {
+                enemies.forEach((enemy, enemyIndex) => {
+                    const bulletRect = bullet.element.getBoundingClientRect();
+                    const enemyRect = enemy.element.getBoundingClientRect();
+                    
+                    if (bulletRect.left < enemyRect.right && 
+                        bulletRect.right > enemyRect.left && 
+                        bulletRect.top < enemyRect.bottom && 
+                        bulletRect.bottom > enemyRect.top) {
+                        
+                        // Hit!
+                        enemy.health -= 25;
+                        bullet.element.remove();
+                        playerBullets.splice(bulletIndex, 1);
+                        
+                        if (enemy.health <= 0) {
+                            enemy.element.remove();
+                            enemies.splice(enemyIndex, 1);
+                            score += 100;
+                        }
+                    }
+                });
+            });
+            
+            // Enemy bullets hitting player
+            enemyBullets.forEach((bullet, bulletIndex) => {
+                const bulletRect = bullet.element.getBoundingClientRect();
+                const playerRect = player.getBoundingClientRect();
+                
+                if (bulletRect.left < playerRect.right && 
+                    bulletRect.right > playerRect.left && 
+                    bulletRect.top < playerRect.bottom && 
+                    bulletRect.bottom > playerRect.top) {
+                    
+                    // Hit!
+                    health -= 4; // Nerfed bullet damage
+                    bullet.element.remove();
+                    enemyBullets.splice(bulletIndex, 1);
+                    
+                    if (health <= 0) {
+                        alert('Game Over! Final Score: ' + score);
+                        location.reload();
+                    }
+                }
+            });
+        }
+        
+        // Update UI
+        function updateUI() {
+            document.getElementById('score-value').textContent = score;
+            document.getElementById('health-value').textContent = health;
+            document.getElementById('ammo-value').textContent = ammo;
+            document.getElementById('score').textContent = score;
+            document.getElementById('health').textContent = health;
+            document.getElementById('ammo').textContent = ammo;
+        }
+        
+        // Power-up spawn function
+        function spawnPowerup(forceAmmo = false) {
+            // Randomly choose type, or force ammo
+            let p;
+            if (forceAmmo) {
+                p = POWERUP_TYPES.find(pt => pt.type === 'ammo');
+            } else {
+                p = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+            }
+            const powerup = document.createElement('div');
+            powerup.className = 'powerup';
+            powerup.style.position = 'absolute';
+            powerup.style.width = '32px';
+            powerup.style.height = '32px';
+            powerup.style.borderRadius = '50%';
+            powerup.style.background = p.color;
+            powerup.style.border = '3px solid ' + p.border;
+            powerup.style.left = (Math.random() * 730 + 20) + 'px';
+            powerup.style.top = (Math.random() * 530 + 20) + 'px';
+            powerup.dataset.type = p.type;
+            // Add logo/icon
+            const logo = document.createElement('div');
+            logo.textContent = p.logo;
+            logo.style.fontSize = '1.5em';
+            logo.style.textAlign = 'center';
+            logo.style.lineHeight = '32px';
+            logo.style.userSelect = 'none';
+            powerup.appendChild(logo);
+            container.appendChild(powerup);
+            powerups.push({
+                element: powerup,
+                x: parseInt(powerup.style.left),
+                y: parseInt(powerup.style.top),
+                type: p.type
+            });
+        }
+        // Floating text effect
+        function showFloatingText(text, x, y, color) {
+            const ft = document.createElement('div');
+            ft.textContent = text;
+            ft.style.position = 'absolute';
+            ft.style.left = x + 'px';
+            ft.style.top = y + 'px';
+            ft.style.color = color;
+            ft.style.fontWeight = 'bold';
+            ft.style.fontSize = '1.2em';
+            ft.style.pointerEvents = 'none';
+            ft.style.textShadow = '1px 1px 4px #000';
+            ft.style.transition = 'all 1s ease';
+            container.appendChild(ft);
+            setTimeout(() => {
+                ft.style.top = (y - 30) + 'px';
+                ft.style.opacity = '0';
+            }, 10);
+            setTimeout(() => ft.remove(), 1100);
+        }
+        
+        // Power-up collision and effect
+        function updatePowerups() {
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const p = powerups[i];
+                const powerupRect = p.element.getBoundingClientRect();
+                const playerRect = player.getBoundingClientRect();
+                if (
+                    powerupRect.left < playerRect.right &&
+                    powerupRect.right > playerRect.left &&
+                    powerupRect.top < playerRect.bottom &&
+                    powerupRect.bottom > playerRect.top
+                ) {
+                    // Apply effect
+                    if (p.type === 'health') {
+                        health = Math.min(100, health + 20);
+                        showFloatingText('+20 HP', p.x, p.y, '#00ff00');
+                    } else if (p.type === 'ammo') {
+                        ammo = Math.min(30, ammo + 15);
+                        showFloatingText('+15 Ammo', p.x, p.y, '#3399ff');
+                    } else if (p.type === 'rapid') {
+                        activateRapidFire();
+                        showFloatingText('Rapid Fire!', p.x, p.y, '#ffcc00');
+                    } else if (p.type === 'infinite') {
+                        activateInfiniteAmmo();
+                        showFloatingText('Infinite Ammo!', p.x, p.y, '#ff66cc');
+                    }
+                    p.element.remove();
+                    powerups.splice(i, 1);
+                }
+            }
+        }
+        // Activate rapid fire (temporary)
+        function activateRapidFire() {
+            if (rapidFireActive) {
+                clearTimeout(rapidFireTimeout);
+            } else {
+                rapidFireActive = true;
+                showPowerupTimer('Rapid Fire', '#ffcc00', 10);
+            }
+            rapidFireTimeout = setTimeout(() => {
+                rapidFireActive = false;
+                removePowerupTimer('Rapid Fire');
+            }, 10000);
+        }
+        // Activate infinite ammo (temporary)
+        function activateInfiniteAmmo() {
+            if (infiniteAmmoActive) {
+                clearTimeout(infiniteAmmoTimeout);
+            } else {
+                infiniteAmmoActive = true;
+                showPowerupTimer('Infinite Ammo', '#ff66cc', 10);
+            }
+            infiniteAmmoTimeout = setTimeout(() => {
+                infiniteAmmoActive = false;
+                removePowerupTimer('Infinite Ammo');
+            }, 10000);
+        }
+        // Show powerup timer indicator
+        function showPowerupTimer(label, color, seconds) {
+            const timer = document.createElement('div');
+            timer.className = 'powerup-timer';
+            timer.textContent = label + ' (10)';
+            timer.style.background = color;
+            // Add to the UI overlay below ammo
+            const timersContainer = document.getElementById('powerup-timers-container');
+            timersContainer.appendChild(timer);
+            let t = 10;
+            const interval = setInterval(() => {
+                t--;
+                timer.textContent = label + ' (' + t + ')';
+                if (t <= 0) {
+                    clearInterval(interval);
+                }
+            }, 1000);
+            powerupTimers.push({ label, timer });
+        }
+        function removePowerupTimer(label) {
+            for (let i = powerupTimers.length - 1; i >= 0; i--) {
+                if (powerupTimers[i].label === label) {
+                    powerupTimers[i].timer.remove();
+                    powerupTimers.splice(i, 1);
+                }
+            }
+        }
+        
+        // Game loop
+        function gameLoop() {
+            updatePlayer();
+            updateBullets();
+            updateEnemies();
+            checkBulletCollisions();
+            updatePowerups();
+            updateUI();
+            
+            // Increase score over time
+            score += 1;
+            
+            // Spawn new enemy every 2-5 seconds if under max
+            if (gameStarted) {
+                enemyRespawnTimer += 16; // ~1 frame at 60fps
+                if (enemyRespawnTimer >= enemyRespawnInterval && enemies.length < 5) {
+                    createEnemy();
+                    enemyRespawnTimer = 0;
+                    enemyRespawnInterval = 2000 + Math.random() * 3000;
+                }
+            }
+            // Spawn powerup more frequently, allow up to 3
+            if (gameStarted && Math.random() < 0.006 && powerups.length < 3) {
+                spawnPowerup();
+            }
+            // Guarantee at least one ammo powerup if ammo is 0
+            if (gameStarted && ammo === 0 && !powerups.some(p => p.type === 'ammo')) {
+                spawnPowerup(true);
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Start the game
+        console.log('Game initialized, starting loop...');
+        // Show Get Ready message and delay enemy activation
+        document.getElementById('get-ready').style.display = 'flex';
+        readyTimeout = setTimeout(() => {
+            gameStarted = true;
+            document.getElementById('get-ready').style.display = 'none';
+        }, 2500); // 2.5 seconds
+        gameLoop();
+        console.log('Game loop started successfully!');
+    </script>
+</body>
+</html> 
