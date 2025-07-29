@@ -18,4 +18,4 @@ A 2D top-down tank battle game built with HTML5, CSS3, and JavaScript.
 
 - **Movement**: Arrow Keys (8-directional)
 - **Shoot**: Spacebar
-- **Barrel**: Automatically points in movement direction and stays there
+- **BARREL CANNOT BE FIXED FOR SOME REASON**
