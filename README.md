@@ -1,16 +1,21 @@
-## Hi there 👋
+# Tank War Game
 
-<!--
-**masoconn96/masoconn96** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+A 2D top-down tank battle game built with HTML5, CSS3, and JavaScript.
 
-Here are some ideas to get you started:
+## 🎮 Game Features
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+- **Player Tank**: Blue tank controlled with arrow keys
+- **Enemy AI**: 4 different enemy types with unique behaviors:
+  - 🔴 **Chase**: Aggressive enemies that directly pursue the player
+  - 🔵 **Sniper**: Keeps distance and shoots accurately
+  - 🟢 **Patrol**: Moves between waypoints, switches to chase when close
+  - 🟡 **Flanker**: Tries to get behind/side of the player
+- **Power-ups**: Health, Ammo, Rapid Fire, Infinite Ammo (temporary)
+- **Custom Graphics**: Enemy tanks use your screenshot image
+- **Smart AI**: Enemies retreat when low on health, have different shooting patterns
+
+## 🎯 Controls
+
+- **Movement**: Arrow Keys (8-directional)
+- **Shoot**: Spacebar
+- **Barrel**: Automatically points in movement direction and stays there
